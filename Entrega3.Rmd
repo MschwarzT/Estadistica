@@ -1,0 +1,468 @@
+---
+title: "Entrega 3"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(flexdashboard)
+library(rio)
+library(dplyr)
+library(BBmisc)
+library(cluster)
+library(factoextra)
+library(kableExtra)
+library(ggplot2)
+library(tidyverse)
+library(corrplot)
+library(GPArotation)
+data=import("EstadisticaData.xlsx")
+```
+
+##  {data-width="650"}
+
+# Integrantes y datos
+
+```{r}
+cat("Integrantes:\n")
+cat("--> Mathias Schwarz\n", 
+ "--> Josue Ubarnes\n\n")
+
+cat("Cómo entender el Global Peace Index bajo un análisis estadistico\n")
+cat("Curso: Estadística para el Análisis Político 2\n")
+cat("Docente: José Magallanes\n")
+cat("Jefa de práctcas: Airam Bello\n")
+
+```
+
+```{r include=FALSE}
+colSums(is.na(data))
+data_clean <- na.omit(data)
+```
+
+```{r include=FALSE}
+colSums(is.na(data_clean))
+```
+
+```{r include=FALSE}
+# Leer y mostrar la tabla de diccionario
+library(readxl)
+diccionario <- read_excel("diccionario estadistica 2.xlsx", sheet = 1)
+```
+
+```{r}
+knitr::kable(diccionario, caption = "Diccionario de Variables")
+```
+
+Column {data-width=350}
+
+```{r include=FALSE}
+str(data)
+```
+
+Column {data-width=650}
+
+# Variable Central
+
+```{r}
+ggplot(data_clean, aes(y = GPI_22)) +
+  geom_boxplot(fill = "lightcoral", color = "black") +
+  labs(title = "Boxplot del GPI",
+       y = "GPI_22") +
+  theme_minimal()
+```
+
+La variable dependiente, Global Peace Index, es una variable que mide la paz de manera negativa, es decir, un valor más bajo del GPI indica un mayor nivel de paz. Teniendo en cuenta ello el bloxplot muestra que la mayoría de países tien un GPI entre 1.728 y 2.243. Lo cuál significa que la mayoría de países tienen un rango de paz similar. La mediana 1.969, es el valor tipico que separa a los países más pacíficos de los menos pacíficos. También se puede ver los puntos negros, es decir, los bigotes los cuáles indican el rango principal de los datos sin contar los valores extremos. Siendo el minimo (1.107), el caso de Islandia, país considerado como el más pacífico, puesto que cuenta con un bajo nivel de criminalidad, gran estabilidad política y es considerado uno de los países más seguros del mundo. Por otro lado, los valores atípicos corresponden a los países con el mayor nivel de violencia o un pésimo nivel de paz, siendo el caso de Rusia con 3.275. Ello se puede deber a que Rusia inició un conflicto internacional ese mismo año del estudio (2022) con Ucrania, así como el quiebre de relaciones bilaterales, tanto políticas como economicas con potencias economicas como EEUU y UE. Las tensiones internas por el auge de la guerra puede ser factores que afectan la seguridad y paz.
+
+Row {data-width=650}
+-----------------------------------------------------------------------
+
+# Correlaciones
+
+```{r include=FALSE}
+modelo_multiple <- lm(GPI_22 ~ IMP_22 + EXP_22 + PBI_2022+ PCI_22+ LIB_PREN+ IDH+ IMI+ DEST, data = data_clean)
+summary(modelo_multiple)
+```
+
+```{r}
+numeric_vars <- data_clean %>% 
+  select(GPI_22, IMP_22, EXP_22, PBI_2022, PCI_22, LIB_PREN, IDH, IMI, DEST)
+
+correlation_matrix <- cor(numeric_vars, use = "complete.obs")
+
+# Create correlation plot
+corrplot(correlation_matrix, 
+         method = "color",
+         type = "upper",
+         order = "hclust",
+         addCoef.col = "black",
+         number.cex = 0.7,
+         tl.cex = 0.7)
+```
+```{r}
+library(ggplot2)
+library(ggthemes)
+ggplot(data_clean, aes(x = GPI_22)) + 
+  geom_histogram(color = "black", fill = "#56B4E9", bins = 30) + 
+  facet_wrap(~ TPR) + 
+  labs(x = "Índice global de violencia", y = "Frecuencia", title = "índice global de violencia según régimen") + 
+  theme_solarized()
+```
+```{r include=FALSE}
+data = data_clean %>%
+  mutate(TPR = case_when(
+    TPR %in% c("Democracia Plena", "Democracia Defectuosa") ~ "0",
+    TPR %in% c("Régimen Híbrido", "Régimen Autoritario") ~ "1",
+    TRUE ~ "Desconocido"))
+table(data_clean$TPR)
+```
+
+```{r include=FALSE}
+modelo_simple1 <- lm(GPI_22 ~ PCI_22, data = data_clean)
+summary(modelo_simple1)
+```
+
+```{r}
+ggplot(data_clean, aes(x = PCI_22, y = GPI_22)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Relación entre GPI y PCI",
+       x = "PCI_22", y = "GPI_22") +
+  theme_minimal()
+```
+
+El gráfico muestra la relación entre el GPI y la Percepción de Corrupción (PCI). Mostrando una relación negativa, lo que quiere decir, que a mayor transparencia/menor corrupción menor nivel de violencia. La pendiente pronunciada sugiere que existe relación fuerte
+
+```{r include=FALSE}
+modelo_simple2 <- lm(GPI_22 ~ LIB_PREN, data = data_clean)
+summary(modelo_simple2)
+```
+
+```{r}
+ggplot(data_clean, aes(x = LIB_PREN, y = GPI_22)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Relación entre GPI y LIB_PREN",
+       x = "LIB_PREN", y = "GPI_22") +
+  theme_minimal()
+```
+
+Esta regresión muestra la relación entre el GPI y la Libertad de Prensa. Se puede ver una relación negativa, lo quiere decir que a mayor libertad de prensa, menor es el índice de violencia. Esta relacion es moderadamente fuerte.
+
+```{r}
+modelo_simple3 <- lm(GPI_22 ~ IDH, data = data_clean)
+summary(modelo_simple3)
+```
+
+
+```{r}
+ggplot(data_clean, aes(x = IDH, y = GPI_22)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "Relación entre GPI y IDH",
+       x = "IDH", y = "GPI_22") +
+  theme_minimal()
+```
+
+En el caso de este gráfico muestra la relación entre el GPI y el IDH. Demuestra una relación negativa, por lo tanto, se puede decir a mayor desarrollo humano (IDH), menor índice de violencia (GPI).
+
+```{r include=FALSE}
+modelo_simple4 <- lm(PBI_2022 ~ GPI_22, data = data_clean)
+summary(modelo_simple4)
+```
+
+```{r}
+ggplot(data_clean, aes(x = GPI_22, y = PBI_2022)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Gr\u00e1fico de Linealidad",
+       x = "GPI_22",
+       y = "PBI_2022")
+```
+Se observa una relación no perfectamente lineal entre GPI_22 y PBI_2022
+
+```{r}
+residuos <- resid(modelo_simple4)
+qqnorm(residuos)
+qqline(residuos, col = "red")
+```
+Los residuos muestran algunas desviaciones de la normalidad, especialmente en los extremos
+
+```{r}
+fitted_values <- fitted(modelo_simple4)
+plot(fitted_values, residuos,
+     xlab = "Valores ajustados",
+     ylab = "Residuos",
+     main = "Gr\u00e1fico de Homocedasticidad")
+abline(h = 0, col = "red")
+```
+Hay cierta dispersión no uniforme de los residuos, lo que sugiere posible heterocedasticidad
+
+Row {data-width=650}
+-----------------------------------------------------------------------
+
+# Analisis factorial
+
+
+```{r include=FALSE}
+dontselect=c("PAÍS","REGIÓN","TPR")
+select=setdiff(names(data_clean),dontselect) 
+data_num=data_clean[,select]
+
+# usaremos:
+library(magrittr)
+```
+
+```{r include=FALSE}
+head(data_num,10)%>%
+    rmarkdown::paged_table()
+```
+
+```{r include=FALSE}
+library(polycor)
+corMatrix=polycor::hetcor(data_num)$correlations
+round(corMatrix,2)
+```
+
+```{r}
+library(ggcorrplot)
+ggcorrplot(corMatrix)
+```
+
+Esta matriz de correlación muestra relaciones lineanes entre las variables. El color rojo indica una correlación positiva cercanas a 1, el blanco correlaciones débiles o nulas, y las azules correlaciones negativas cercanas a -1. En el caso de las correlaciones fuertes positivas, se encuentra tanto Importaciones como Exportaciones, lo cuál es lógico, ya que países con alto comercio exterior tienden a tener tanto altas importaciones como exportaciones. Siguiendo con las correlaciones moderadamente positivas entre IDH, Libertad de Prensa y Indice de Percepción de Corrupción, sugiriendo que países con mayor desarrollo humano tienden a tener mayor libertad de prensa y menor corrupción. En el caso de las correlaciones negativas se encuentran el IDH, Libertad de Prensa, Percepción de corrupción e Innovación, indicando que; a mayor desarrollo humano, libertad de prensa, transparencia e innovación, menor es el índice de violencia en los países. Ejemplo de ello es que países como Noruega tienen una alta libertad de prensa y bajo niveles de violencia, mientras que en Corea del Norte, tienen una libertad de prensa nula controlada por su gobierno y altos niveles de violencia, mostrado en sus campos de reeducación. Como último punto variables como Desempleo (DEST) o el PBI muestran correlaciones débiles con la mayoría de variables.
+
+Row {data-width=350}
+-----------------------------------------------------------------------
+
+```{r include=FALSE}
+library(psych)
+```
+
+```{r include=FALSE}
+psych::KMO(corMatrix)
+```
+```{r include=FALSE}
+cortest.bartlett(corMatrix,n=nrow(data_num))$p.value>0.05
+```
+```{r include=FALSE}
+library(matrixcalc)
+
+is.singular.matrix(corMatrix)
+```
+
+```{r include=FALSE}
+fa.parallel(data_num, fa = 'fa',correct = T,plot = F)
+```
+
+```{r include=FALSE}
+resfa <- fa(data_num,
+            nfactors = 3,
+            cor = 'mixed',
+            rotate = "varimax", #oblimin?
+            fm="minres")
+print(resfa$loadings)
+```
+
+```{r include=FALSE}
+print(resfa$loadings,cutoff = 0.5)
+```
+
+
+# Resultados datos agrupados
+
+```{r}
+fa.diagram(resfa,main = "Resultados")
+```
+
+Los resultados han arrojado tres grupos: El primer grupo: IMI, IDH y PCI arroja grupos de asociaciones fuertes (entre 0.7 a 0.9). Siendo indicadores de desarrollo político El segundo grupo: EXP y IMP. tienen relaciones perfectas entre sí (1.0), por lo tanto hay una correlación completa entre variables relacionadas al comercio En el tercer grupo: LIB_PREN, GPI, contienen una relación postiva fuerte (0.8) y negativa moderada (-0.6).\
+Por útltimo, variables como PBI o DEST muestran una relación nula, por lo que podría indicar que estas variables no influyen o afectan de alguna manera al modelo estadístico.
+
+Row {data-width=350}
+-----------------------------------------------------------------------
+# Analisis Cluster
+
+```{r include=FALSE}
+sort(resfa$communality)
+```
+
+```{r include=FALSE}
+sort(resfa$complexity)
+```
+
+```{r include=FALSE}
+resfa$TLI
+```
+
+```{r include=FALSE}
+resfa$rms
+```
+
+```{r include=FALSE}
+resfa$RMSEA
+```
+
+```{r include=FALSE}
+resfa$BIC
+```
+
+```{r include=FALSE}
+as.data.frame(resfa$scores)%>%head()
+```
+
+Row {data-width=350}
+-----------------------------------------------------------------------
+
+```{r include=FALSE}
+names(data_clean)
+```
+
+```{r include=FALSE}
+boxplot(data_clean[,c("GPI_22","IMP_22","EXP_22","PBI_2022","PCI_22","LIB_PREN","IDH","IMI","DEST")],horizontal = F,las=2,cex.axis = 0.5)
+```
+
+```{r include=FALSE}
+boxplot(normalize(data_clean[,c("GPI_22","IMP_22","EXP_22","PBI_2022","PCI_22","LIB_PREN","IDH","IMI","DEST")],method='range',range=c(0,80)))
+```
+
+```{r include=FALSE}
+boxplot(normalize(data_clean[,c("GPI_22","IMP_22","EXP_22","PBI_2022","PCI_22","LIB_PREN","IDH","IMI","DEST")],method='standardize'))
+```
+
+```{r include=FALSE}
+data_clean[,c("GPI_22","IMP_22","EXP_22","PBI_2022","PCI_22","LIB_PREN","IDH","IMI","DEST")]=normalize(data_clean[,c("GPI_22","IMP_22","EXP_22","PBI_2022","PCI_22","LIB_PREN","IDH","IMI","DEST")],method='standardize')
+
+#idhdemo[,c(4:7)]=normalize(idhdemo[,c(4:7)],method='standardize')
+```
+
+```{r include=FALSE}
+#matriz_cluster <- cor(data_clean[,c("GPI_22","IMP_22","EXP_22","PBI_2022","PCI_22","LIB_PREN","IDH","IMI","DEST")])
+
+matriz_cluster_original <- cor(data_clean[,c("GPI_22","IMP_22","EXP_22","PBI_2022","PCI_22","LIB_PREN","IDH","IMI","DEST")])
+```
+
+```{r include=FALSE}
+dataClus = data_clean[,c("GPI_22","IMP_22","EXP_22","PBI_2022","PCI_22","LIB_PREN","IDH","IMI","DEST")]
+row.names(dataClus) = data_clean$PAÍS 
+```
+
+```{r include=FALSE}
+g.dist = daisy(dataClus, metric="gower")
+
+g.dist2 = daisy(dataClus, metric="euclidean")
+
+g.dist3 = daisy(dataClus, metric="manhattan")
+```
+
+```{r}
+fviz_nbclust(dataClus, pam,diss=g.dist,method = "gap_stat",k.max = 10,verbose = F)
+```
+```{r include=FALSE}
+library(kableExtra)
+set.seed(123)
+res.pam=pam(g.dist,4,cluster.only = F)
+
+#nueva columna
+dataClus$pam=res.pam$cluster
+
+# ver
+
+head(dataClus,15)%>%kbl()%>%kable_styling()
+```
+
+```{r include=FALSE}
+silPAM=data.frame(res.pam$silinfo$widths)
+silPAM$country=row.names(silPAM)
+poorPAM=silPAM[silPAM$sil_width<0,'country']%>%sort()
+poorPAM
+```
+
+```{r}
+fviz_silhouette(res.pam,print.summary = F)
+```
+PAM
+
+```{r}
+fviz_nbclust(dataClus, hcut,diss=g.dist,method = "gap_stat",k.max = 10,verbose = F,hc_func = "agnes")
+```
+```{r include=FALSE}
+set.seed(123)
+library(factoextra)
+
+res.agnes<- hcut(g.dist, k = 4,hc_func='agnes',hc_method = "ward.D")
+
+dataClus$agnes=res.agnes$cluster
+
+# ver
+
+head(dataClus,15)%>%kbl()%>%kable_styling()
+```
+
+```{r}
+fviz_dend(res.agnes, cex = 0.7, horiz = T,main = "")
+```
+```{r}
+fviz_silhouette(res.agnes,print.summary = F)
+```
+AGNES
+
+```{r include=FALSE}
+silAGNES=data.frame(res.agnes$silinfo$widths)
+silAGNES$country=row.names(silAGNES)
+poorAGNES=silAGNES[silAGNES$sil_width<0,'country']%>%sort()
+poorAGNES
+```
+
+```{r include=FALSE}
+aggregate(.~ agnes, data=dataClus,mean)
+```
+
+```{r include=FALSE}
+fviz_nbclust(dataClus, hcut,diss=g.dist2,method = "gap_stat",k.max = 10,verbose = F,hc_func = "diana")
+```
+
+```{r include=FALSE}
+set.seed(123)
+res.diana <- hcut(g.dist, k = 4,hc_func='diana')
+dataClus$diana=res.diana$cluster
+# veamos
+head(dataClus,15)%>%kbl%>%kable_styling()
+```
+
+```{r include=FALSE}
+cor(data_clean[,c(11:4)], use = "complete.obs")
+```
+
+```{r}
+fviz_silhouette(res.diana,print.summary = F)
+```
+DIANA
+
+```{r include=FALSE}
+silDIANA=data.frame(res.diana$silinfo$widths)
+silDIANA$country=row.names(silDIANA)
+poorDIANA=silDIANA[silDIANA$sil_width<0,'country']%>%sort()
+poorDIANA
+```
+
+Row {data-width=350}
+-----------------------------------------------------------------------
+# Conclusiones
+
+El Global Peace Index (GPI) se posiciona como un indicador clave que refleja los niveles de paz en los países, desde una perspectiva negativa. Es decir, un valor bajo indica un mayor grado de paz. En ese sentido, el análisis llevado a cabo ha permitido no solo identificar patrones relevantes, sino también cuestionar y reflexionar sobre los determinantes de la paz a nivel global.
+
+En efecto, los resultados obtenidos sugieren que los factores sociales e institucionales, como la percepción de corrupción (PCI), la libertad de prensa (LIB_PREN) y el índice de desarrollo humano (IDH), son determinantes para explicar la variación en el GPI. La importancia de estas variables refuerza la idea de que la estabilidad y la transparencia en las instituciones tienen un impacto directo en la disminución de la violencia y en el fomento de la paz. Por otro lado, factores económicos como el PBI o el comercio (IMP, EXP), aunque son relevantes, no presentan una contribución sustancial en el modelo estadístico al predecir los niveles de paz.
+
+Además, una observación importante surge de la relación negativa entre el GPI y la percepción de corrupción, la libertad de prensa y el desarrollo humano. Estas relaciones resaltan que una mayor transparencia, el respeto por la prensa y un enfoque en el bienestar humano no solo fortalecen la cohesión social, sino que también mitigan los factores que perpetúan la violencia. Ejemplos como Islandia, con sus altos niveles de paz, y Corea del Norte, en el extremo opuesto, validan estas relaciones y exponen cómo las dinámicas políticas y sociales pueden moldear el panorama de seguridad.
+
+Asimismo, el modelo de regresión y los análisis de correlación han señalado limitaciones y oportunidades. La preferencia por el R ajustado frente al R simple permitió una evaluación más precisa del modelo, minimizando el riesgo de inflar la significancia de variables irrelevantes. Sin embargo, el modelo también revela la necesidad de un enfoque crítico al incluir variables, ya que elementos como el PBI o el desempleo (DEST) presentaron una influencia marginal o nula en la explicación del GPI.
+
+El análisis factorial y el agrupamiento jerárquico contribuyeron a una mejor comprensión de la estructura subyacente en los datos. La identificación de tres conjuntos de variables asociadas permitió clasificar las dinámicas institucionales, comerciales y sociales que caracterizan a los países. La decisión de analizar cuatro clústeres, pese a la recomendación inicial de un único grupo, resalta la intención de obtener una segmentación que facilite la identificación de patrones. De este modo, nos permitió capturar las relaciones entre variables con mayor impacto, destacando cómo las dinámicas comerciales (IMP y EXP) se comportan de manera autónoma frente a las variables sociales y de desarrollo.
+
+En esa línea, este trabajo enfatiza que los esfuerzos para mejorar los niveles de paz deben enfocarse en fortalecer los sistemas institucionales y sociales. La integración económica, por sí sola, no garantiza una disminución de la violencia, como lo demuestran los casos de países económicamente desarrollados que no lideran en niveles de paz. Además, el modelo plantea preguntas importantes sobre cómo otros factores no considerados en este análisis podrían estar influyendo en el GPI, como el contexto histórico, geopolítico o cultural.
+
+A modo de conclusión, esta investigación invita a reflexionar sobre la complejidad de la paz y sus determinantes. Los hallazgos resaltan que la paz no es simplemente la ausencia de violencia, sino el resultado de sistemas que promueven el desarrollo humano, la transparencia y la participación social. Así, este análisis debe ser considerado por formuladores de políticas, investigadores y organismos internacionales que buscan construir un sistema internacional más articulado.
+
+
